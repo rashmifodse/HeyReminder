@@ -75,7 +75,7 @@ const KINDS=[["🏢","I’m in Signet Office","Signet Office"],["🏬","I’m in
 const NAV=[["home","Home","🏠"],["hist","History","📅"],["ins","Insights","📊"],["set","Settings","⚙️"]];
 const T={pending:"Upcoming",due:"Due now",snoozed:"Snoozed",done:"Done",skipped:"Skipped",missed:"Missed"},EV={n10:"🔔 10m",n5:"🚨 5m",done:"✓ done",snooze:"⏰ snooze",skip:"↷ skip"};
 const DEF={set:{int:105,from:10,to:20,snd:true,style:"normal",vib:true,gps:true,rad:150,hist:false,wa:""},locs:["Kolshet Road","Majiwada","Manpada","Balkum","Dhokali","Lodha Sterling","Kalpataru Immense","Runwal Eirene"],fav:[],kind:null,place:null,sess:null,hist:{},pl:{},gh:[],use:{},ack:{}};
-let S,tab="home",hv="day",wo=0,op=null,qv="",ac,D=null;
+let S,tab="home",hv="day",wo=0,op=null,qv="",ac,D=null,NE="",WL=null;
 function loadS(){const d=JSON.parse(JSON.stringify(DEF));try{S=Object.assign(d,JSON.parse(localStorage.getItem(K)||"{}"))}catch(e){S=d}S.set=Object.assign({},DEF.set,S.set);S.locs=S.locs.filter(x=>x!=="Swagat Properties Dhokali");delete S.pl["Swagat Properties Dhokali"];S.fav=S.fav.filter(x=>x!=="Swagat Properties Dhokali")}
 function save(){try{localStorage.setItem(K,JSON.stringify(S))}catch(e){}}
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -97,11 +97,11 @@ function beep(u){if(!S.set.snd)return;if(u)[0,.28,.56,.84].forEach((t,i)=>tone(i
 function banner(t,b,u,c){const e=$("#ban");e.className="ban show"+(u?" urg":"");e.innerHTML="<b>"+esc(t)+"</b><span>"+esc(b)+"</span>"+(c?'<button class="ok" style="margin-top:8px" onclick="event.stopPropagation();copyMsg()">📋 Copy status message</button>':"");clearTimeout(banner.t);banner.t=setTimeout(()=>e.className="ban",c?20000:u?15000:6000)}
 const toast=m=>banner("HeyReminder",m,0);
 function notify(t,b,u,tag){beep(u);try{if(S.set.vib&&navigator.vibrate)navigator.vibrate(u?[300,120,300,120,500]:[200])}catch(e){}banner(t,b,u,S.sess&&S.kind!=null);
- try{if("Notification" in window&&Notification.permission==="granted"){const n=new Notification(t,{body:b+"\n"+waMsg(),tag,requireInteraction:!!u});n.onclick=()=>{window.focus();copyMsg()}}}catch(e){}}
+ try{if("Notification" in window&&Notification.permission==="granted"){const n=new Notification(t,{body:b+"\n"+waMsg(),tag,requireInteraction:!!u});n.onclick=()=>{window.focus();copyMsg()}}}catch(e){NE=e.name}}
 const WHY={gps:["📍","Allow location access?","HeyReminder uses your location once, when you tap Detect or Start, to suggest where you are (for example Signet Office) and write your status message.",["Never tracked in the background","Stays on your device","You can always pick a place manually"]],notif:["🔔","Allow notifications?","HeyReminder sends a heads-up 10 minutes and 5 minutes before each reminder, even when you’re on another tab.",["Only your reminder alerts","No ads or spam","Turn off any time in Settings"]]};
 function why(k){return new Promise(res=>{const w=WHY[k];$("#pp").innerHTML=`<div class="ov" style="z-index:40"><div class="card sum" style="text-align:center"><div style="font-size:44px">${w[0]}</div><h2 style="margin:6px 0">${w[1]}</h2><p>${w[2]}</p><div style="text-align:left;margin:10px 0 14px">${w[3].map(t=>`<div>✓ ${t}</div>`).join("")}</div><button class="go" style="margin:0;padding:16px;font-size:17px" id="wy">Allow ${k==="gps"?"location":"notifications"}</button><button class="b2" style="width:100%;margin-top:8px" id="wn">Not now</button><p class="mu sm" style="margin-bottom:0">Your browser will ask you to confirm next.</p></div></div>`;
  $("#wy").onclick=()=>{S.ack[k]=1;save();$("#pp").innerHTML="";res(true)};$("#wn").onclick=()=>{$("#pp").innerHTML="";res(false)}})}
-async function perm(){if(!("Notification" in window))return toast("This browser doesn’t support notifications");if(!S.ack.notif&&!(await why("notif")))return;try{Notification.requestPermission().then(()=>render())}catch(e){toast("This browser doesn’t support notifications")}}
+async function perm(){if(!("Notification" in window))return toast("This browser doesn’t support notifications");if(!S.ack.notif&&!(await why("notif")))return;try{await Notification.requestPermission();render()}catch(e){toast("This browser doesn’t support notifications")}}
 /* session engine: all times are absolute timestamps, re-evaluated against the system clock */
 async function start(){ctx();if(S.sess)return;if(Date.now()>=at(S.set.to))return toast("Today’s active hours are over");
  if(!S.set.gps)D={g:{err:"off"},t:Date.now()};
@@ -110,7 +110,7 @@ async function start(){ctx();if(S.sess)return;if(Date.now()>=at(S.set.to))return
 function begin(){if(S.sess)return;if(S.place)S.use[S.place]=(S.use[S.place]||0)+1;
  const n=Date.now(),w0=at(S.set.from),w1=at(S.set.to);if(n>=w1)return toast("Today’s active hours are over");
  const a=Math.max(n,w0),step=S.set.int*6e4,sl=[];for(let t=a+step,i=0;t<=w1;t+=step,i++)sl.push({id:i,t,st:"pending",n10:0,n5:0,sn:0,ev:[]});
- S.sess={start:n,end:w1,loc:label(),state:"active",slots:sl};save();render();
+ S.sess={start:n,end:w1,loc:label(),state:"active",slots:sl};save();render();keepAwake();
  if("Notification" in window&&Notification.permission==="default")perm()}
 function tick(){const s=S.sess;if(!s)return;const n=Date.now();if(n>=s.end){finish("ended");return}
  const P=s.state==="paused";let ch=0;
@@ -133,7 +133,7 @@ function finish(kind){const s=S.sess;if(!s)return;const n=Date.now();
  if(kind==="stopped")s.slots=s.slots.filter(x=>!(x.st==="pending"&&x.t>n));
  s.slots.forEach(x=>{if(["pending","due","snoozed"].includes(x.st))x.st="missed"});
  const k=dk(s.start),h=S.hist[k];if(h)h.slots=h.slots.concat(s.slots);else S.hist[k]={date:k,start:s.start,loc:s.loc,slots:s.slots};
- S.sess=null;save();render();if(kind==="ended")summary(S.hist[k])}
+ S.sess=null;try{WL&&WL.release()}catch(e){}save();render();if(kind==="ended")summary(S.hist[k])}
 function summary(h){const z=st(h.slots);
  const msg=z.pct>=80?"Outstanding consistency – you’re building a real habit! 🌟":z.pct>=50?"Solid day! Keep the momentum going tomorrow. 💪":z.done?"Every check-in counts. You showed up, and that matters. 🌱":"Tomorrow is a fresh start. One reminder at a time! ☀️";
  $("#md").innerHTML=`<div class="ov" onclick="this.remove()"><div class="card sum" onclick="event.stopPropagation()"><h2>Today’s summary</h2><div class="big" style="color:var(--ac)">${z.pct}%</div><div class="mu">${esc(h.loc)}</div><div class="g2" style="margin:14px 0"><div>Scheduled <b>${z.tot}</b></div><div>Completed <b>${z.done}</b></div><div>Missed <b>${z.miss}</b></div><div>Skipped <b>${z.skip}</b></div></div><p>${msg}</p><button class="go" style="margin:0;padding:14px;font-size:16px" onclick="document.querySelector('.ov').remove()">Close</button></div></div>`}
@@ -150,7 +150,7 @@ function chipsH(q){q=q.trim().toLowerCase();const l=S.locs.filter(x=>x.toLowerCa
 /* views */
 function permBar(){const p="Notification" in window?Notification.permission:"unsupported",t={granted:["ok","Alerts on"],denied:["er","Alerts blocked"],default:["wa","Alerts not enabled"],unsupported:["er","Notifications unsupported"]}[p];
  return`<div class="row sp card sm"><span class="pill ${t[0]}">${t[1]}</span><span class="mu">Sound ${S.set.snd?"on":"off"} · Vibration ${S.set.vib?"on":"off"}</span>${p==="default"?'<button class="b2" onclick="perm()">Enable</button>':p==="denied"?'<span class="mu">Allow in browser settings</span>':""}</div>
- <p class="mu sm">💡 Keep HeyReminder open (or add it to your home screen) so reminders can reach you.</p>`}
+ <p class="mu sm">💡 Keep HeyReminder open (or add it to your home screen) so reminders can reach you. Your screen stays on while your day is running.</p><button class="b2" onclick="testAlerts()">🔔 Test alerts now</button>`}
 function cur(){return S.sess.slots.find(x=>x.st==="due"||x.st==="snoozed"||(x.st==="pending"&&x.n10))}
 function vHome(){return permBar()+(S.sess?live():`<h2>Where are you today?</h2>${gpsCard()}<div class="g2">${KINDS.map((k,i)=>`<button class="lc ${S.kind===i?"on":""}" onclick="kind(${i})"><b>${k[0]}</b>${k[1]}</button>`).join("")}</div>${S.kind==null?"":msgCard()}${topLocs()}<div style="margin-top:12px"><input id="q" class="in" placeholder="Search or add a place…" value="${esc(qv)}" oninput="chips()"></div><div id="ch" class="chips">${chipsH(qv)}</div><button class="go" onclick="start()">START MY DAY</button><p class="mu" style="text-align:center">1. Pick your spot · 2. Tap Start · 3. We’ll nudge you every ${Math.floor(S.set.int/60)}h ${S.set.int%60}m between ${hl(S.set.from)} and ${hl(S.set.to)}.</p>`)}
 function live(){const s=S.sess,z=st(s.slots),c=cur();
@@ -160,7 +160,7 @@ function live(){const s=S.sess,z=st(s.slots),c=cur();
 function ui(){const e=$("#cd");if(!e||!S.sess)return;const s=S.sess,n=s.slots.find(x=>x.st==="pending"||x.st==="snoozed"),l=$("#cl");
  if(s.state==="paused"){e.textContent="Paused";l.textContent="Resume to continue notifications";return}
  if(!n){e.textContent="All clear";l.textContent="Summary at "+fm(s.end);return}
- const t=n.st==="snoozed"?n.su:n.t;e.textContent=hh(t-Date.now());l.textContent=n.st==="snoozed"?"until your snoozed reminder":"until the reminder at "+fm(n.t)}
+ const t=n.st==="snoozed"?n.su:n.t;e.textContent=hh(t-Date.now());l.textContent=n.st==="snoozed"?"until your snoozed reminder":"until the reminder at "+fm(n.t)+" · alerts at "+fm(n.t-6e5)+" and "+fm(n.t-3e5)}
 function day(k,d){if(!d)return`<div class="card sm row sp"><b>${fd(k)}</b><span class="mu">No activity</span></div>`;const z=st(d.slots);
  return`<div class="card" onclick="op=op==='${k}'?null:'${k}';render()"><div class="row sp"><div><b>${fd(k)}</b>${d.live?' <span class="pill wa">live</span>':""}<div class="mu sm">${esc(d.loc)} · from ${fm(d.start)}</div></div><b class="pc">${z.pct}%</b></div><div class="bar"><i style="width:${z.pct}%"></i></div><div class="mu sm">${z.done} done · ${z.miss} missed · ${z.skip} skipped · ${z.snz} snoozes</div>
  ${op===k?`<div class="det">${d.slots.map(x=>`<div class="row sp sm"><b>${fm(x.t)}</b><span class="sl s-${x.st}">${T[x.st]}</span><span class="mu">${x.ev.map(e=>EV[e[1]]+" "+fm(e[0])).join(" · ")||"no alerts sent"}</span></div>`).join("")}</div>`:""}</div>`}
@@ -181,7 +181,7 @@ const tg=(k,l)=>`<label class="fl">${l}<input type="checkbox" class="sw" ${S.set
 function cfg(k,v){S.set[k]=v;save()}
 function vSet(){const c=S.set;
  return`<h3>Reminders</h3><div class="card"><label class="fl">Interval (minutes)<input class="in" type="number" min="15" max="480" value="${c.int}" onchange="cfg('int',Math.min(480,Math.max(15,+this.value||105)))"></label><label class="fl">Active from<select onchange="cfg('from',+this.value)">${hr(c.from)}</select></label><label class="fl">Active until<select onchange="cfg('to',+this.value)">${hr(c.to)}</select></label><p class="mu sm">Applies the next time you press Start. Default: every 1h 45m, 10 AM – 8 PM.</p></div>
- <h3>Alerts</h3><div class="card">${tg("snd","Notification sounds")}<label class="fl">10-minute alert sound<select onchange="cfg('style',this.value)"><option value="normal" ${c.style==="normal"?"selected":""}>Normal</option><option value="urgent" ${c.style==="urgent"?"selected":""}>Urgent</option></select></label>${tg("vib","Vibration")}<div class="row"><button onclick="ctx();beep(0)">Test normal</button><button onclick="ctx();beep(1)">Test urgent</button><button onclick="perm()">Allow notifications</button></div></div>
+ <h3>Alerts</h3><div class="card">${tg("snd","Notification sounds")}<label class="fl">10-minute alert sound<select onchange="cfg('style',this.value)"><option value="normal" ${c.style==="normal"?"selected":""}>Normal</option><option value="urgent" ${c.style==="urgent"?"selected":""}>Urgent</option></select></label>${tg("vib","Vibration")}<div class="row"><button class="ok" onclick="testAlerts()">🔔 Send test alerts</button><button class="b2" onclick="perm()">Allow notifications</button></div><div id="diag" class="sm" style="margin-top:12px">${diag()}</div></div>
  <h3>Saved locations</h3><div class="card">${S.locs.map((x,i)=>`<div class="fl sm"><div>${esc(x)}${gpsInfo(x,i)}</div><span><button onclick="fav(${i});render()">${S.fav.includes(x)?"★":"☆"}</button> <button onclick="delLoc(${i})">✕</button></span></div>`).join("")}<div class="row" style="margin-top:8px"><input id="np" class="in" style="flex:1" placeholder="New location"><button class="b2" onclick="addLoc()">Add</button></div></div>
  <h3>Location & privacy</h3><div class="card">${tg("gps","Use GPS to detect my location")}<p class="mu sm" style="margin:0 0 6px">Your position is read once when you tap Detect or Start, only to suggest where you are. HeyReminder never tracks you continuously, and coordinates stay on this device. Address lookup uses OpenStreetMap; if it’s unavailable HeyReminder falls back to your saved, pinned places.</p><label class="fl">Default geofence radius<select onchange="cfg('rad',+this.value)">${[50,100,150,300,500].map(v=>`<option value="${v}" ${v===c.rad?"selected":""}>${v} m</option>`).join("")}</select></label>${tg("hist","Keep location history")}<div class="row sp sm"><span class="mu">${S.gh.length} saved check-ins</span><button onclick="S.gh=[];save();render()">Clear</button></div><p class="mu sm" style="margin-bottom:4px">WhatsApp group invite link</p><input class="in" placeholder="https://chat.whatsapp.com/…" value="${esc(c.wa||"")}" onchange="cfg('wa',this.value.trim())"><p class="mu sm">Optional. Adds an Open group button beside Copy message. You paste the message yourself.</p></div><h3>Data</h3><div class="card"><div class="row"><button onclick="exp()">Export history (CSV)</button><button class="er" onclick="two(this,()=>finish('stopped'))" ${S.sess?"":"disabled"}>Stop reminders</button><button class="er" onclick="two(this,resetAll)">Reset everything</button></div><div id="ex"></div></div>`}
 const dist=(a,b,c,d)=>{const r=Math.PI/180,x=(c-a)*r,y=(d-b)*r,h=Math.sin(x/2)**2+Math.cos(a*r)*Math.cos(c*r)*Math.sin(y/2)**2;return 12742e3*Math.asin(Math.sqrt(h))};
@@ -221,6 +221,14 @@ function copyMsg(){const m=waMsg(),ok=()=>toast("Copied ✓ – now paste it in 
  try{navigator.clipboard.writeText(m).then(ok,f)}catch(e){f()}}
 function openWA(){try{window.open(S.set.wa,"_blank","noopener")}catch(e){}}
 function msgCard(){return`<div class="card" style="border:2px solid #1fa855"><div class="mu sm">Your status message</div><div style="background:#dcf8c6;border-radius:14px;padding:12px 14px;margin:8px 0;font-size:18px">${esc(waMsg())}</div><div class="row"><button class="ok" style="flex:1" onclick="copyMsg()">📋 Copy message</button>${/^https:\/\/chat\.whatsapp\.com\//.test(S.set.wa||"")?'<button class="b2" onclick="openWA()">Open group</button>':""}</div><p class="mu sm" style="margin:8px 0 0">Tap copy, then paste it in your WhatsApp group.</p></div>`}
+function diag(){const n="Notification" in window,p=n?Notification.permission:"unsupported";let fr=false;try{fr=window.self!==window.top}catch(e){fr=true}
+ const r=(ok,t)=>`<div>${ok?"✅":"⚠️"} ${t}</div>`;
+ return r(n&&p==="granted","System notifications: "+p)+(NE?r(false,"Notification error ("+NE+"): this browser can’t show page notifications here"):"")+r(!fr,fr?"Running inside a preview frame – browsers often block system notifications here. Open the app link in its own browser tab.":"Running in its own tab")+r(S.set.snd&&!!(ac&&ac.state==="running"),"Sound: "+(S.set.snd?(ac?ac.state:"tap Send test alerts to start it"):"turned off in settings"))+r(!!navigator.vibrate,"Vibration "+(navigator.vibrate?"supported":"not supported on this device"))+"<div class=\"mu\">In-app alerts (banner, sound, vibration) always work while this page is open.</div>"}
+async function testAlerts(){ctx();NE="";if("Notification" in window&&Notification.permission==="default")await perm();
+ notify("Your next reminder is approaching!","You have 10 minutes remaining. Please prepare for your next activity.",0,"t1-"+Date.now());
+ setTimeout(()=>notify("Important Alert – Only 5 Minutes Left!","This is an important reminder. Please take action now.",1,"t2-"+Date.now()),4000);
+ setTimeout(()=>{const d=$("#diag");if(d)d.innerHTML=diag()},4500)}
+async function keepAwake(){try{if(S.sess&&S.sess.state==="active"&&navigator.wakeLock&&!WL){WL=await navigator.wakeLock.request("screen");WL.onrelease=()=>{WL=null}}}catch(e){}}
 function addLoc(){const v=$("#np").value.trim();if(v&&!S.locs.includes(v)){S.locs.push(v);save()}render()}
 function delLoc(i){const p=S.locs.splice(i,1)[0];delete S.pl[p];S.fav=S.fav.filter(x=>x!==p);if(S.place===p)S.place=null;save();render()}
 function csv(){const m=days();let o="date,location,scheduled,status,alert_10min,alert_5min,snoozes\n";Object.keys(m).sort().forEach(k=>m[k].slots.forEach(x=>{const e=n=>x.ev.some(v=>v[1]===n)?"sent":"no";o+=[k,'"'+m[k].loc.replace(/"/g,'""')+'"',new Date(x.t).toTimeString().slice(0,5),x.st,e("n10"),e("n5"),x.sn].join(",")+"\n"}));return o}
@@ -235,7 +243,7 @@ function render(){const v={home:vHome,hist:vHist,ins:vIns,set:vSet}[tab];$("#v")
 loadS();
 if(S.sess&&Date.now()>=S.sess.end)finish("ended");else render();
 try{navigator.permissions.query({name:"geolocation"}).then(p=>{if(p.state==="granted"&&S.set.gps&&!S.sess){S.ack.gps=1;detectHome(1)}})}catch(e){}
-setInterval(tick,1000);document.addEventListener("visibilitychange",tick);tick();
+setInterval(tick,1000);document.addEventListener("visibilitychange",()=>{tick();keepAwake()});tick();
 </script>
 </body>
 </html>
