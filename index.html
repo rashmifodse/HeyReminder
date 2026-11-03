@@ -66,7 +66,7 @@ textarea{height:140px;font:12px monospace}
 <header><div><h1 id="gr">Hello 👋</h1><small class="mu" id="dt"></small></div><span class="pill ok">⏰ HeyReminder</span></header>
 <main id="v"></main>
 <div id="ban" class="ban" onclick="go('home')"></div>
-<div id="md"></div>
+<div id="md"></div><div id="pp"></div>
 <button id="fab" class="fab" onclick="copyMsg()" style="display:none"></button>
 <nav id="nv"></nav>
 <script>
@@ -74,7 +74,7 @@ const $=s=>document.querySelector(s),K="pulse.v1";
 const KINDS=[["🏢","I’m in Signet Office","Signet Office"],["🏬","I’m in Another Office","Another Office"],["📍","I’m at Another Location","Another Location"],["🏠","I’m at an Apartment","Apartment"],["🏗️","I’m on a Site Visit","Site Visit"]];
 const NAV=[["home","Home","🏠"],["hist","History","📅"],["ins","Insights","📊"],["set","Settings","⚙️"]];
 const T={pending:"Upcoming",due:"Due now",snoozed:"Snoozed",done:"Done",skipped:"Skipped",missed:"Missed"},EV={n10:"🔔 10m",n5:"🚨 5m",done:"✓ done",snooze:"⏰ snooze",skip:"↷ skip"};
-const DEF={set:{int:105,from:10,to:20,snd:true,style:"normal",vib:true,gps:true,rad:150,hist:false,wa:""},locs:["Kolshet Road","Majiwada","Manpada","Balkum","Dhokali","Lodha Sterling","Kalpataru Immense","Runwal Eirene"],fav:[],kind:null,place:null,sess:null,hist:{},pl:{},gh:[],use:{}};
+const DEF={set:{int:105,from:10,to:20,snd:true,style:"normal",vib:true,gps:true,rad:150,hist:false,wa:""},locs:["Kolshet Road","Majiwada","Manpada","Balkum","Dhokali","Lodha Sterling","Kalpataru Immense","Runwal Eirene"],fav:[],kind:null,place:null,sess:null,hist:{},pl:{},gh:[],use:{},ack:{}};
 let S,tab="home",hv="day",wo=0,op=null,qv="",ac,D=null;
 function loadS(){const d=JSON.parse(JSON.stringify(DEF));try{S=Object.assign(d,JSON.parse(localStorage.getItem(K)||"{}"))}catch(e){S=d}S.set=Object.assign({},DEF.set,S.set);S.locs=S.locs.filter(x=>x!=="Swagat Properties Dhokali");delete S.pl["Swagat Properties Dhokali"];S.fav=S.fav.filter(x=>x!=="Swagat Properties Dhokali")}
 function save(){try{localStorage.setItem(K,JSON.stringify(S))}catch(e){}}
@@ -98,7 +98,10 @@ function banner(t,b,u,c){const e=$("#ban");e.className="ban show"+(u?" urg":"");
 const toast=m=>banner("HeyReminder",m,0);
 function notify(t,b,u,tag){beep(u);try{if(S.set.vib&&navigator.vibrate)navigator.vibrate(u?[300,120,300,120,500]:[200])}catch(e){}banner(t,b,u,S.sess&&S.kind!=null);
  try{if("Notification" in window&&Notification.permission==="granted"){const n=new Notification(t,{body:b+"\n"+waMsg(),tag,requireInteraction:!!u});n.onclick=()=>{window.focus();copyMsg()}}}catch(e){}}
-function perm(){try{Notification.requestPermission().then(()=>render())}catch(e){toast("This browser doesn’t support notifications")}}
+const WHY={gps:["📍","Allow location access?","HeyReminder uses your location once, when you tap Detect or Start, to suggest where you are (for example Signet Office) and write your status message.",["Never tracked in the background","Stays on your device","You can always pick a place manually"]],notif:["🔔","Allow notifications?","HeyReminder sends a heads-up 10 minutes and 5 minutes before each reminder, even when you’re on another tab.",["Only your reminder alerts","No ads or spam","Turn off any time in Settings"]]};
+function why(k){return new Promise(res=>{const w=WHY[k];$("#pp").innerHTML=`<div class="ov" style="z-index:40"><div class="card sum" style="text-align:center"><div style="font-size:44px">${w[0]}</div><h2 style="margin:6px 0">${w[1]}</h2><p>${w[2]}</p><div style="text-align:left;margin:10px 0 14px">${w[3].map(t=>`<div>✓ ${t}</div>`).join("")}</div><button class="go" style="margin:0;padding:16px;font-size:17px" id="wy">Allow ${k==="gps"?"location":"notifications"}</button><button class="b2" style="width:100%;margin-top:8px" id="wn">Not now</button><p class="mu sm" style="margin-bottom:0">Your browser will ask you to confirm next.</p></div></div>`;
+ $("#wy").onclick=()=>{S.ack[k]=1;save();$("#pp").innerHTML="";res(true)};$("#wn").onclick=()=>{$("#pp").innerHTML="";res(false)}})}
+async function perm(){if(!("Notification" in window))return toast("This browser doesn’t support notifications");if(!S.ack.notif&&!(await why("notif")))return;try{Notification.requestPermission().then(()=>render())}catch(e){toast("This browser doesn’t support notifications")}}
 /* session engine: all times are absolute timestamps, re-evaluated against the system clock */
 async function start(){ctx();if(S.sess)return;if(Date.now()>=at(S.set.to))return toast("Today’s active hours are over");
  if(!S.set.gps)D={g:{err:"off"},t:Date.now()};
@@ -182,7 +185,7 @@ function vSet(){const c=S.set;
  <h3>Saved locations</h3><div class="card">${S.locs.map((x,i)=>`<div class="fl sm"><div>${esc(x)}${gpsInfo(x,i)}</div><span><button onclick="fav(${i});render()">${S.fav.includes(x)?"★":"☆"}</button> <button onclick="delLoc(${i})">✕</button></span></div>`).join("")}<div class="row" style="margin-top:8px"><input id="np" class="in" style="flex:1" placeholder="New location"><button class="b2" onclick="addLoc()">Add</button></div></div>
  <h3>Location & privacy</h3><div class="card">${tg("gps","Use GPS to detect my location")}<p class="mu sm" style="margin:0 0 6px">Your position is read once when you tap Detect or Start, only to suggest where you are. HeyReminder never tracks you continuously, and coordinates stay on this device. Address lookup uses OpenStreetMap; if it’s unavailable HeyReminder falls back to your saved, pinned places.</p><label class="fl">Default geofence radius<select onchange="cfg('rad',+this.value)">${[50,100,150,300,500].map(v=>`<option value="${v}" ${v===c.rad?"selected":""}>${v} m</option>`).join("")}</select></label>${tg("hist","Keep location history")}<div class="row sp sm"><span class="mu">${S.gh.length} saved check-ins</span><button onclick="S.gh=[];save();render()">Clear</button></div><p class="mu sm" style="margin-bottom:4px">WhatsApp group invite link</p><input class="in" placeholder="https://chat.whatsapp.com/…" value="${esc(c.wa||"")}" onchange="cfg('wa',this.value.trim())"><p class="mu sm">Optional. Adds an Open group button beside Copy message. You paste the message yourself.</p></div><h3>Data</h3><div class="card"><div class="row"><button onclick="exp()">Export history (CSV)</button><button class="er" onclick="two(this,()=>finish('stopped'))" ${S.sess?"":"disabled"}>Stop reminders</button><button class="er" onclick="two(this,resetAll)">Reset everything</button></div><div id="ex"></div></div>`}
 const dist=(a,b,c,d)=>{const r=Math.PI/180,x=(c-a)*r,y=(d-b)*r,h=Math.sin(x/2)**2+Math.cos(a*r)*Math.cos(c*r)*Math.sin(y/2)**2;return 12742e3*Math.asin(Math.sqrt(h))};
-function locate(){return new Promise(res=>{if(!S.set.gps)return res({err:"off"});if(!navigator.geolocation)return res({err:"unsupported"});
+async function locate(){if(S.set.gps&&!S.ack.gps&&!(await why("gps")))return{err:"declined"};return new Promise(res=>{if(!S.set.gps)return res({err:"off"});if(!navigator.geolocation)return res({err:"unsupported"});
  try{navigator.geolocation.getCurrentPosition(p=>res({lat:p.coords.latitude,lng:p.coords.longitude,acc:p.coords.accuracy}),e=>res({err:e.code===1?"denied":e.code===3?"timeout":"unavailable"}),{enableHighAccuracy:true,timeout:12000,maximumAge:60000})}catch(e){res({err:"unavailable"})}})}
 async function rev(a,b){try{const c=new AbortController();setTimeout(()=>c.abort(),5000);const r=await fetch("https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=18&lat="+a+"&lon="+b,{signal:c.signal}),j=await r.json(),d=j.address||{};return[d.building||d.amenity||d.road,d.neighbourhood||d.suburb||d.village||d.city_district,d.city||d.town].filter(Boolean).join(", ")||j.display_name||null}catch(e){return null}}
 async function detect(){const g=await locate(),o={g};if(g.err)return o;o.addr=await rev(g.lat,g.lng);let b=null;
@@ -191,7 +194,7 @@ async function detect(){const g=await locate(),o={g};if(g.err)return o;o.addr=aw
  o.m=b;return o}
 const conf=o=>o.g.err||!o.m?"":o.m.d==null?"txt":o.g.acc<=Math.max(100,S.pl[o.m.n].r)?"high":"low";
 function apply(o){if(conf(o)==="high"){const p=S.pl[o.m.n];S.kind=p.cat;S.place=o.m.n}}
-function dTxt(o){const g=o.g;if(g.err)return{off:"GPS detection is off. Choose where you are.",denied:"Location permission was denied. Choose where you are manually.",unsupported:"This browser has no location support. Choose manually.",timeout:"Location timed out. Try again or choose manually.",unavailable:"Location is unavailable. Choose manually."}[g.err];
+function dTxt(o){const g=o.g;if(g.err)return{off:"GPS detection is off. Choose where you are.",declined:"No problem – choose where you are manually.",denied:"Location permission was denied. Choose where you are manually.",unsupported:"This browser has no location support. Choose manually.",timeout:"Location timed out. Try again or choose manually.",unavailable:"Location is unavailable. Choose manually."}[g.err];
  return o.m?"Your current location: "+o.m.n:"New location"+(o.addr?" near "+o.addr:" ("+g.lat.toFixed(4)+", "+g.lng.toFixed(4)+")")}
 async function detectHome(s){if(!S.set.gps)return toast("GPS detection is off in Settings");if(!s)toast("Checking your location… allow access when asked");D=await detect();D.t=Date.now();apply(D);render();if(!s)banner("HeyReminder",dTxt(D),0)}
 function gpsCard(){return`<div class="card sm"><div class="row sp"><b>${D?esc(dTxt(D)):"Detect where you are"}</b><button class="b2" onclick="detectHome()" ${S.set.gps?"":"disabled"}>📍 Detect</button></div><div class="mu" style="margin-top:6px">${D?"":"HeyReminder reads your location once, only when you tap this or Start, to suggest where you are. It never tracks you. "}${Object.keys(S.pl).length?"":"Save a place once and HeyReminder will recognise it next time. "}You can always choose manually below.</div></div>`}
@@ -231,7 +234,7 @@ function render(){const v={home:vHome,hist:vHist,ins:vIns,set:vSet}[tab];$("#v")
  const fb=$("#fab"),fm2=waMsg();fb.style.display=fm2&&tab!=="home"?"flex":"none";fb.textContent="📋 Copy: "+fm2;const h=new Date().getHours();$("#gr").textContent=(h<12?"Good morning":h<17?"Good afternoon":"Good evening")+" 👋";$("#dt").textContent=new Date().toLocaleDateString([],{weekday:"long",month:"long",day:"numeric"});ui()}
 loadS();
 if(S.sess&&Date.now()>=S.sess.end)finish("ended");else render();
-try{navigator.permissions.query({name:"geolocation"}).then(p=>{if(p.state==="granted"&&S.set.gps&&!S.sess)detectHome(1)})}catch(e){}
+try{navigator.permissions.query({name:"geolocation"}).then(p=>{if(p.state==="granted"&&S.set.gps&&!S.sess){S.ack.gps=1;detectHome(1)}})}catch(e){}
 setInterval(tick,1000);document.addEventListener("visibilitychange",tick);tick();
 </script>
 </body>
